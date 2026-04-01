@@ -8,7 +8,7 @@ import { accessApi } from "../api/access";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Download, Upload } from "lucide-react";
+import { Settings, Check, Download, Upload, Copy, UserPlus } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
@@ -48,6 +48,10 @@ export function CompanySettings() {
     setLogoUrl(selectedCompany.logoUrl ?? "");
   }, [selectedCompany]);
 
+  const [teamInviteUrl, setTeamInviteUrl] = useState<string | null>(null);
+  const [teamInviteError, setTeamInviteError] = useState<string | null>(null);
+  const [teamInviteCopied, setTeamInviteCopied] = useState(false);
+
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSnippet, setInviteSnippet] = useState<string | null>(null);
   const [snippetCopied, setSnippetCopied] = useState(false);
@@ -78,6 +82,20 @@ export function CompanySettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     }
+  });
+
+  const teamInviteMutation = useMutation({
+    mutationFn: () =>
+      accessApi.createCompanyInvite(selectedCompanyId!, { allowedJoinTypes: "human" }),
+    onSuccess: (invite) => {
+      setTeamInviteError(null);
+      const base = window.location.origin.replace(/\/+$/, "");
+      setTeamInviteUrl(`${base}/invite/${invite.token}`);
+      setTeamInviteCopied(false);
+    },
+    onError: (err) => {
+      setTeamInviteError(err instanceof Error ? err.message : "Failed to create invite");
+    },
   });
 
   const inviteMutation = useMutation({
@@ -174,6 +192,9 @@ export function CompanySettings() {
     setInviteSnippet(null);
     setSnippetCopied(false);
     setSnippetCopyDelightId(0);
+    setTeamInviteUrl(null);
+    setTeamInviteError(null);
+    setTeamInviteCopied(false);
   }, [selectedCompanyId]);
 
   const archiveMutation = useMutation({
@@ -389,6 +410,63 @@ export function CompanySettings() {
             onChange={(v) => settingsMutation.mutate(v)}
             toggleTestId="company-settings-team-approval-toggle"
           />
+        </div>
+      </div>
+
+      {/* Team Members */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Team Members
+        </div>
+        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">
+              Generate an invite link for a team member to join this company.
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => teamInviteMutation.mutate()}
+              disabled={teamInviteMutation.isPending}
+            >
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              {teamInviteMutation.isPending ? "Generating..." : "Invite team member"}
+            </Button>
+          </div>
+          {teamInviteError && (
+            <p className="text-sm text-destructive">{teamInviteError}</p>
+          )}
+          {teamInviteUrl && (
+            <div className="rounded-md border border-border bg-muted/30 p-2">
+              <div className="text-xs text-muted-foreground mb-1">Invite link</div>
+              <div className="flex items-center gap-2">
+                <input
+                  className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs outline-none"
+                  value={teamInviteUrl}
+                  readOnly
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(teamInviteUrl);
+                      setTeamInviteCopied(true);
+                      setTimeout(() => setTeamInviteCopied(false), 2000);
+                    } catch { /* clipboard may not be available */ }
+                  }}
+                >
+                  {teamInviteCopied ? (
+                    <><Check className="mr-1 h-3 w-3" /> Copied</>
+                  ) : (
+                    <><Copy className="mr-1 h-3 w-3" /> Copy</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
