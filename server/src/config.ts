@@ -143,7 +143,7 @@ export function loadConfig(): Config {
     AUTH_BASE_URL_MODES.includes(authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       ? (authBaseUrlModeFromEnvRaw as AuthBaseUrlMode)
       : null;
-  const publicUrlFromEnv = process.env.PAPERCLIP_PUBLIC_URL;
+  const publicUrlFromEnv = process.env.PAPERCLIP_PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL;
   const authPublicBaseUrlRaw =
     process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL ??
     process.env.BETTER_AUTH_URL ??
