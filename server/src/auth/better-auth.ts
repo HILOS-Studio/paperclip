@@ -1,6 +1,7 @@
 import type { Request, RequestHandler } from "express";
 import type { IncomingHttpHeaders } from "node:http";
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { toNodeHandler } from "better-auth/node";
 import type { Db } from "@paperclipai/db";
@@ -90,6 +91,32 @@ export function createBetterAuthInstance(db: Db, config: Config, trustedOrigins?
       enabled: true,
       requireEmailVerification: false,
       disableSignUp: config.authDisableSignUp,
+    },
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? {
+          socialProviders: {
+            google: {
+              clientId: process.env.GOOGLE_CLIENT_ID,
+              clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            },
+          },
+        }
+      : {}),
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        const allowedDomain = process.env.PAPERCLIP_ALLOWED_EMAIL_DOMAIN;
+        if (!allowedDomain) return;
+        if (ctx.path !== "/sign-up/email") return;
+        const email = ctx.body?.email as string | undefined;
+        if (email) {
+          const domain = email.split("@")[1];
+          if (domain !== allowedDomain) {
+            throw new APIError("FORBIDDEN", {
+              message: `Sign-up is restricted to ${allowedDomain} accounts`,
+            });
+          }
+        }
+      }),
     },
     ...(isHttpOnly ? { advanced: { useSecureCookies: false } } : {}),
   };

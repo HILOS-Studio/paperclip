@@ -68,6 +68,22 @@ export const authApi = {
     await authPost("/sign-up/email", input);
   },
 
+  signInGoogle: async () => {
+    const res = await fetch("/api/auth/sign-in/social", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", callbackURL: "/" }),
+    });
+    const data = await res.json().catch(() => null);
+    const url = data?.url;
+    if (url) {
+      window.location.href = url;
+    } else {
+      throw new Error(data?.error?.message ?? "Google sign-in failed");
+    }
+  },
+
   signOut: async () => {
     await authPost("/sign-out", {});
   },
